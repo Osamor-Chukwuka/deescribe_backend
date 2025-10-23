@@ -13,16 +13,35 @@ class BookmarkController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $bookmarks = $user->bookmarks()
+        $searchTerm = $request->query('searchterm');
+
+        $bookmarksQuery = $user->bookmarks()
             ->with(['post' => function ($query) {
                 $query->withCount('bookmarks'); // Count how many times the post is bookmarked
-            }])
-            ->get();
+            }]);
+
+
+        if ($searchTerm && $searchTerm !== '' && $searchTerm !== 'null') {
+            $bookmarksQuery->whereHas('post', function ($q) use ($searchTerm) {
+                $q->where('title', 'like', "%{$searchTerm}%")
+                    ->orWhere('content', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        $bookmarks = $bookmarksQuery->get();
+
+        // Extract both bookmark ID and related post ID
+        $data = $bookmarks->map(function ($bookmark) {
+            return [
+                'bookmark_id' => $bookmark->id,
+                'post_id' => optional($bookmark->post)->id,
+            ];
+        })->filter(fn($item) => !is_null($item['post_id']))->values();
 
         return response()->json([
             'status' => true,
             'message' => 'Bookmarks retrieved successfully',
-            'bookmarks' => $bookmarks
+            'bookmarks' => $data
         ]);
     }
 
@@ -54,13 +73,13 @@ class BookmarkController extends Controller
 
     //delete bookmark
     public function destroy(Request $request, Post $post)
-    {   
+    {
         $user = $request->user();
         $bookmark = $user->bookmarks()->where('post_id', $post->id)->first();
 
         // Check if the user can delete the bookmark
         Gate::authorize('delete', $bookmark);
-        
+
         $bookmark->delete();
 
         return response()->json([
