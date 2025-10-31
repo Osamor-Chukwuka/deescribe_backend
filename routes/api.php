@@ -4,11 +4,14 @@ use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\BookmarkController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\FollowController;
+use App\Http\Controllers\GoogleController;
 use App\Http\Controllers\LikeController;
 use App\Http\Controllers\LookupController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\XController;
 use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
 
 //show api status
@@ -16,7 +19,16 @@ Route::get('/', function () {
     return response()->json(['status' => 'API is running']);
 });
 
+//Auth
 Route::post('/login', [SessionController::class, 'login']);
+
+Route::middleware([StartSession::class])->group(function () {
+    Route::get('auth/google/callback', [GoogleController::class, 'handleGoogleCallback']);
+    Route::get('auth/google/{action}', [GoogleController::class, 'redirectToGoogle']);
+    Route::get('auth/x/callback', [XController::class, 'handleXCallback']);
+    Route::get('auth/x/{action}', [XController::class, 'redirectToX']);
+});
+
 Route::post('/register', [SessionController::class, 'register']);
 Route::post('/forgot-password', [SessionController::class, 'forgotPassword']);
 Route::post('/reset-password', [SessionController::class, 'resetPassword']);
